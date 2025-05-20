@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Backend Pipeline
+  backend:
+    name: Backend Pipeline
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with Ruff
+        run: ruff .
+
+      - name: Type check with mypy
+        run: mypy .
+
+      - name: Format check with Black
+        run: black --check .
+
+      - name: Run tests
+        run: pytest
+
+  # Frontend Pipeline
+  frontend:
+    name: Frontend Pipeline
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint with ESLint
+        run: npx eslint .
+
+      - name: Format check with Prettier
+        run: npx prettier --check .
+
+      - name: Run Unit Tests with Vitest
+        run: npm run test
+
+      - name: Run E2E Tests with Cypress
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          build: npm run build
+          start: npm run preview
+
+  deploy:
+    name: Deploy to Production
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
